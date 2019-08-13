@@ -10,8 +10,8 @@ import java.lang.annotation.Target;
  * Description: 自定义注解模块
  * JcChen on 2019/8/11 15:11
  */
-@Retention(RetentionPolicy.SOURCE)  //注解的存活时间
+@Retention(RetentionPolicy.CLASS)  //注解的存活时间
 @Target(ElementType.FIELD) //运用注解的地方，field---运用在属性注解
-public @interface GetViewById {
+public @interface ViewById {
     int value(); //value用于接收注解该View的id值
 }

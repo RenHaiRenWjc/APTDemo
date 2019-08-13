@@ -1,6 +1,6 @@
 package com.jc.apt_compiler.mode;
 
-import com.jc.aptannotations.GetViewById;
+import com.jc.aptannotations.ViewById;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.VariableElement;
@@ -14,15 +14,18 @@ import javax.lang.model.type.TypeMirror;
 public class FieldViewBinding {
     private VariableElement mVariableElement; //注解元素
     private int mResId; // id
-    private String name; //变量名
-    private TypeMirror typeMirror; //变量类型
+    private String fieldName; //变量名
+    private TypeMirror fieldType; //变量类型
 
     public FieldViewBinding(Element element) {
+//        if (element.getKind() != ElementKind.FIELD) {
+//            throw new Exception("error not field");
+//        }
         this.mVariableElement = (VariableElement) element;
-        GetViewById getViewById = element.getAnnotation(GetViewById.class);
+        ViewById getViewById = element.getAnnotation(ViewById.class);
         mResId = getViewById.value();
-        name = element.getSimpleName().toString();
-        typeMirror = element.asType();
+        fieldName = element.getSimpleName().toString();
+        fieldType = element.asType();
     }
 
     public VariableElement getVariableElement() {
@@ -33,11 +36,11 @@ public class FieldViewBinding {
         return mResId;
     }
 
-    public String getName() {
-        return name;
+    public String getFieldName() {
+        return fieldName;
     }
 
-    public TypeMirror getTypeMirror() {
-        return typeMirror;
+    public TypeMirror getFieldType() {
+        return fieldType;
     }
 }

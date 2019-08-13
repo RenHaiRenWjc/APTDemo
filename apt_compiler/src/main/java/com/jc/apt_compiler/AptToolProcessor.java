@@ -3,7 +3,7 @@ package com.jc.apt_compiler;
 import com.google.auto.service.AutoService;
 import com.jc.apt_compiler.mode.FieldViewBinding;
 import com.jc.apt_compiler.mode.ProxyClass;
-import com.jc.aptannotations.GetViewById;
+import com.jc.aptannotations.ViewById;
 import com.jc.aptannotations.OnClick;
 
 
@@ -18,6 +18,7 @@ import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
@@ -36,7 +37,7 @@ import javax.tools.Diagnostic;
 
 //属于auto-service库，可以自动生成META-INF/services/javax.annotation.processing.Processor文件
 // （该文件是所有注解处理器都必须定义的），免去了我们手动配置的麻烦。
-@AutoService(Process.class)
+@AutoService(Processor.class)
 public class AptToolProcessor extends AbstractProcessor {
     private Filer mFiler;  //文件相关工具类
     private Elements mElementsUtils; // 元素相关工具类
@@ -51,7 +52,10 @@ public class AptToolProcessor extends AbstractProcessor {
      */
     @Override
     public synchronized void init(ProcessingEnvironment processingEnvironment) {
+        info("AptToolProcessor","info init");
         super.init(processingEnvironment);
+        String d = null;
+        d.toString();
         mFiler = processingEnvironment.getFiler();
         mElementsUtils = processingEnvironment.getElementUtils();
         mMessager = processingEnvironment.getMessager();
@@ -66,15 +70,16 @@ public class AptToolProcessor extends AbstractProcessor {
      */
     @Override
     public boolean process(Set<? extends TypeElement> set, RoundEnvironment roundEnvironment) {
-        for (Element element : roundEnvironment.getElementsAnnotatedWith(GetViewById.class)) {
-            if (!isValidPass(GetViewById.class, "fields", element)) {
+        for (Element element : roundEnvironment.getElementsAnnotatedWith(ViewById.class)) {
+            if (!isValidPass(ViewById.class, "fields", element)) {
                 return true;
             }
             parseViewById(element);
             error(element, "@%s %s AptToolProcessor may only be contained in classes. (%s.%s)",
-                    "GetViewById.class", "fields","test",
+                    "ViewById.class", "fields", "test",
                     element.getSimpleName());
         }
+       info("AptToolProcessor","info process");
         for (ProxyClass proxyClass : mProxyClassMap.values()) {
             try {
                 proxyClass.generateProxy().writeTo(mFiler);
@@ -87,18 +92,26 @@ public class AptToolProcessor extends AbstractProcessor {
         return true;
     }
 
-    /**
-     * 指定哪些注解应用被注解处理器注册
-     *
-     * @return 返回一个 String 集合，包含了你的注解处理器想要处理的注解类型的全限定名。
-     */
     @Override
-    public Set<String> getSupportedOptions() {
+    public Set<String> getSupportedAnnotationTypes() {
         Set<String> types = new LinkedHashSet<>();
-        types.add(GetViewById.class.getName());
+        types.add(ViewById.class.getName());
         types.add(OnClick.class.getName());
         return types;
     }
+
+//    /**
+//     * 指定哪些注解应用被注解处理器注册
+//     *
+//     * @return 返回一个 String 集合，包含了你的注解处理器想要处理的注解类型的全限定名。
+//     */
+//    @Override
+//    public Set<String> getSupportedOptions() {
+//        Set<String> types = new LinkedHashSet<>();
+//        types.add(ViewById.class.getName());
+//        types.add(OnClick.class.getName());
+//        return types;
+//    }
 
     /**
      * 用来指定使用 java 版本
@@ -162,6 +175,10 @@ public class AptToolProcessor extends AbstractProcessor {
 
     private void error(Element e, String msg, Object... args) {
         mMessager.printMessage(Diagnostic.Kind.ERROR, String.format(msg, args), e);
+    }
+
+    private void info(String msg, Object... args) {
+        mMessager.printMessage(Diagnostic.Kind.NOTE, String.format(msg, args));
     }
 
     private void parseViewById(Element element) {

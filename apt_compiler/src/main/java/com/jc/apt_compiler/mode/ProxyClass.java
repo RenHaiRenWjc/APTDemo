@@ -22,11 +22,11 @@ import javax.lang.model.util.Elements;
 public class ProxyClass {
     public TypeElement typeElement; // 类元素
     private Elements elementUtils; // 元素相关辅助类
-    private Set<FieldViewBinding> bindViews = new HashSet<>();
+    private Set<FieldViewBinding> mFieldList = new HashSet<>();
 
     private static final ClassName IPROXY = ClassName.get("com.jc.aptapi", "IProxy");
     private static final ClassName VIEW = ClassName.get("android.view", "View");
-    private static final String SUFFIX = "$$Proxy";
+    private static final String SUFFIX = "Proxy";
 
     public ProxyClass(TypeElement typeElement, Elements elementUtils) {
         this.typeElement = typeElement;
@@ -34,7 +34,7 @@ public class ProxyClass {
     }
 
     public void add(FieldViewBinding viewBinding) {
-        bindViews.add(viewBinding);
+        mFieldList.add(viewBinding);
     }
 
     //生成代理类
@@ -46,24 +46,37 @@ public class ProxyClass {
                 .addParameter(TypeName.get(typeElement.asType()), "target", Modifier.FINAL)
                 .addParameter(VIEW, "root");
         // 在 inject 方法中，添加 findViewById 逻辑
-        for (FieldViewBinding model : bindViews) {
-            mAddViewBuilder.addStatement("target.$N=($T)(root.findViewById($L))", model.getVariableElement()
-                    , ClassName.get(model.getTypeMirror()), model.getResId());
+        for (FieldViewBinding field : mFieldList) {
+            mAddViewBuilder.addStatement("target.$N=($T)(root.findViewById($L))", field.getFieldName()
+                    , ClassName.get(field.getFieldType()), field.getResId());
         }
 
+        String packageName = getPackageName(typeElement);
+        String className = getClassName(typeElement,packageName);
+        ClassName bindClassName = ClassName.get(packageName, className);
+
         // 添加$$Proxy 为后缀的类
-        TypeSpec finderClass = TypeSpec.classBuilder(typeElement.getSimpleName() + SUFFIX)
+        TypeSpec finderClass = TypeSpec.classBuilder(bindClassName.simpleName() + SUFFIX)
                 .addModifiers(Modifier.PUBLIC)
                 // 添加父接口
                 .addSuperinterface(ParameterizedTypeName.get(IPROXY, TypeName.get(typeElement.asType())))
                 .addMethod(mAddViewBuilder.build())
                 .build();
 
-        // 添加包名
-        String packageName = elementUtils.getPackageOf(typeElement).getQualifiedName().toString();
         // 生成 java 文件
         return JavaFile.builder(packageName, finderClass).build();
     }
+
+    private String getClassName(TypeElement annotatedClassElement, String packageName) {
+        int packageLen = packageName.length() + 1;
+        return annotatedClassElement.getQualifiedName().toString()
+                .substring(packageLen).replace('.', '_');
+    }
+
+    private String getPackageName(TypeElement annotatedClassElement) {
+        return elementUtils.getPackageOf(annotatedClassElement).toString();
+    }
+
 
 
 }

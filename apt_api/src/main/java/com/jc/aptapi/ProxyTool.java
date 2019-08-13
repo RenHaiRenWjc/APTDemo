@@ -12,7 +12,7 @@ import android.view.View;
  * JcChen on 2019/8/12 0:12
  */
 public class ProxyTool {
-    private static final String SUFFIX = "$$Proxy";
+    private static final String SUFFIX = "Proxy";
 
     /**
      * activity

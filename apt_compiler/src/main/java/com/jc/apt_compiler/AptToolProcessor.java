@@ -1,7 +1,9 @@
 package com.jc.apt_compiler;
 
 import com.google.auto.service.AutoService;
+import com.jc.apt_compiler.exception.ProcessingException;
 import com.jc.apt_compiler.mode.FieldViewBinding;
+import com.jc.apt_compiler.mode.OnClickMethod;
 import com.jc.apt_compiler.mode.ProxyClass;
 import com.jc.aptannotations.ViewById;
 import com.jc.aptannotations.OnClick;
@@ -52,10 +54,7 @@ public class AptToolProcessor extends AbstractProcessor {
      */
     @Override
     public synchronized void init(ProcessingEnvironment processingEnvironment) {
-        info("AptToolProcessor","info init");
         super.init(processingEnvironment);
-        String d = null;
-        d.toString();
         mFiler = processingEnvironment.getFiler();
         mElementsUtils = processingEnvironment.getElementUtils();
         mMessager = processingEnvironment.getMessager();
@@ -71,15 +70,24 @@ public class AptToolProcessor extends AbstractProcessor {
     @Override
     public boolean process(Set<? extends TypeElement> set, RoundEnvironment roundEnvironment) {
         for (Element element : roundEnvironment.getElementsAnnotatedWith(ViewById.class)) {
-            if (!isValidPass(ViewById.class, "fields", element)) {
-                return true;
+            if (isValidPass(ViewById.class, "Field", element)) {
+                try {
+                    handleViewById(element);
+                } catch (ProcessingException e) {
+                    e.printStackTrace();
+                }
             }
-            parseViewById(element);
-            error(element, "@%s %s AptToolProcessor may only be contained in classes. (%s.%s)",
-                    "ViewById.class", "fields", "test",
-                    element.getSimpleName());
         }
-       info("AptToolProcessor","info process");
+        for (Element element : roundEnvironment.getElementsAnnotatedWith(OnClick.class)) {
+            if (isValidPass(OnClick.class, "method", element)) {
+                try {
+                    handleOnClickMethod(element);
+                } catch (ProcessingException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        // 为每个宿主类生成对应的类
         for (ProxyClass proxyClass : mProxyClassMap.values()) {
             try {
                 proxyClass.generateProxy().writeTo(mFiler);
@@ -92,6 +100,11 @@ public class AptToolProcessor extends AbstractProcessor {
         return true;
     }
 
+    /**
+     * 指定哪些注解应用被注解处理器注册
+     *
+     * @return 返回一个 String 集合，包含了你的注解处理器想要处理的注解类型的全限定名。
+     */
     @Override
     public Set<String> getSupportedAnnotationTypes() {
         Set<String> types = new LinkedHashSet<>();
@@ -99,19 +112,6 @@ public class AptToolProcessor extends AbstractProcessor {
         types.add(OnClick.class.getName());
         return types;
     }
-
-//    /**
-//     * 指定哪些注解应用被注解处理器注册
-//     *
-//     * @return 返回一个 String 集合，包含了你的注解处理器想要处理的注解类型的全限定名。
-//     */
-//    @Override
-//    public Set<String> getSupportedOptions() {
-//        Set<String> types = new LinkedHashSet<>();
-//        types.add(ViewById.class.getName());
-//        types.add(OnClick.class.getName());
-//        return types;
-//    }
 
     /**
      * 用来指定使用 java 版本
@@ -128,14 +128,14 @@ public class AptToolProcessor extends AbstractProcessor {
      *
      * @param annotationClass 自定义注解
      * @param targetThing     应用注解的地方
-     * @param element         Element元素
+     * @param element         注解Element元素
      * @return
      */
     private boolean isValidPass(Class<? extends Annotation> annotationClass,
                                 String targetThing, Element element) {
         boolean isValid = true;
         // 获取变量所在的父元素，肯定是类、接口、枚举
-        TypeElement typeElement = (TypeElement) element.getEnclosedElements();
+        TypeElement typeElement = (TypeElement) element.getEnclosingElement();
 
         // 父元素的全限定名, com.jc.aptannotations.OnClick
         String qualiFiedName = typeElement.getQualifiedName().toString();
@@ -177,14 +177,20 @@ public class AptToolProcessor extends AbstractProcessor {
         mMessager.printMessage(Diagnostic.Kind.ERROR, String.format(msg, args), e);
     }
 
-    private void info(String msg, Object... args) {
-        mMessager.printMessage(Diagnostic.Kind.NOTE, String.format(msg, args));
+    private void info(Element e, String msg, Object... args) {
+        mMessager.printMessage(Diagnostic.Kind.NOTE, String.format(msg, args), e);
     }
 
-    private void parseViewById(Element element) {
+    private void handleViewById(Element element) throws ProcessingException {
         ProxyClass proxyClass = getProxyClass(element);
         FieldViewBinding binding = new FieldViewBinding(element);
-        proxyClass.add(binding);
+        proxyClass.addField(binding);
+    }
+
+    private void handleOnClickMethod(Element element) throws ProcessingException {
+        ProxyClass proxyClass = getProxyClass(element);
+        OnClickMethod onClickMethod = new OnClickMethod(element);
+        proxyClass.addMethod(onClickMethod);
     }
 
     /**

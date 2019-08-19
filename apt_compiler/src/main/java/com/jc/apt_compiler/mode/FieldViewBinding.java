@@ -1,8 +1,10 @@
 package com.jc.apt_compiler.mode;
 
+import com.jc.apt_compiler.exception.ProcessingException;
 import com.jc.aptannotations.ViewById;
 
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 
@@ -17,13 +19,17 @@ public class FieldViewBinding {
     private String fieldName; //变量名
     private TypeMirror fieldType; //变量类型
 
-    public FieldViewBinding(Element element) {
-//        if (element.getKind() != ElementKind.FIELD) {
-//            throw new Exception("error not field");
-//        }
+    public FieldViewBinding(Element element) throws ProcessingException {
+        if (element.getKind() != ElementKind.FIELD) {
+            throw new ProcessingException("Only field can be annotated with @%s", ViewById.class.getSimpleName());
+        }
         this.mVariableElement = (VariableElement) element;
         ViewById getViewById = element.getAnnotation(ViewById.class);
         mResId = getViewById.value();
+        if (mResId < 0) {
+            throw new ProcessingException("value() in %s for field % is not valid",
+                    ViewById.class.getSimpleName(), mVariableElement.getSimpleName());
+        }
         fieldName = element.getSimpleName().toString();
         fieldType = element.asType();
     }

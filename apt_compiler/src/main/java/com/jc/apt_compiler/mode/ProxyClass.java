@@ -23,9 +23,12 @@ public class ProxyClass {
     public TypeElement typeElement; // 类元素
     private Elements elementUtils; // 元素相关辅助类
     private Set<FieldViewBinding> mFieldList = new HashSet<>();
+    private Set<OnClickMethod> mOnClickMethods = new HashSet<>();
 
     private static final ClassName IPROXY = ClassName.get("com.jc.aptapi", "IProxy");
-    private static final ClassName VIEW = ClassName.get("android.view", "View");
+    public static final ClassName VIEW = ClassName.get("android.view", "View");
+    public static final ClassName VIEW_ON_CLICK_LISTENER = ClassName.get("android.view",
+            "View", "OnClickListener");
     private static final String SUFFIX = "Proxy";
 
     public ProxyClass(TypeElement typeElement, Elements elementUtils) {
@@ -33,26 +36,55 @@ public class ProxyClass {
         this.elementUtils = elementUtils;
     }
 
-    public void add(FieldViewBinding viewBinding) {
+    public void addField(FieldViewBinding viewBinding) {
         mFieldList.add(viewBinding);
+    }
+
+    public void addMethod(OnClickMethod onClickMethod) {
+        mOnClickMethods.add(onClickMethod);
     }
 
     //生成代理类
     public JavaFile generateProxy() {
         //生成public void inject(final T target, View root)方法
-        MethodSpec.Builder mAddViewBuilder = MethodSpec.methodBuilder("inject")
+        MethodSpec.Builder mInjectBuilder = MethodSpec.methodBuilder("inject")
                 .addModifiers(Modifier.PUBLIC)
                 .addAnnotation(Override.class)
                 .addParameter(TypeName.get(typeElement.asType()), "target", Modifier.FINAL)
                 .addParameter(VIEW, "root");
         // 在 inject 方法中，添加 findViewById 逻辑
         for (FieldViewBinding field : mFieldList) {
-            mAddViewBuilder.addStatement("target.$N=($T)(root.findViewById($L))", field.getFieldName()
+            // target.textView=(TextView)(root.findViewById(2131165326));
+            mInjectBuilder.addStatement("target.$N=($T)(root.findViewById($L))", field.getFieldName()
                     , ClassName.get(field.getFieldType()), field.getResId());
         }
 
+//        listener = new View.OnClickListener() {
+//            @Override
+//            public void onClick(View view) {
+//                target.onViewClicked(onViewClicked);
+//            }
+//        };
+        for (OnClickMethod method : mOnClickMethods) {
+            mInjectBuilder.addStatement("$T listener", VIEW_ON_CLICK_LISTENER);
+            TypeSpec listener = TypeSpec.anonymousClassBuilder("")
+                    .addSuperinterface(VIEW_ON_CLICK_LISTENER)
+                    .addMethod(MethodSpec.methodBuilder("onClick")
+                            .addAnnotation(Override.class).addModifiers(Modifier.PUBLIC)
+                            .returns(TypeName.VOID).addParameter(VIEW, "view")
+                            .addStatement("target.$N($L)", method.getMethodName()
+                                    , method.hasParameter() ? method.getParameterName() : "")
+                            .build()
+                    ).build();
+
+            mInjectBuilder.addStatement("listener = $L", listener);
+            for (int id : method.getIds()) {
+                mInjectBuilder.addStatement("(root.findViewById($L)).setOnClickListener(listener)", id);
+            }
+        }
+
         String packageName = getPackageName(typeElement);
-        String className = getClassName(typeElement,packageName);
+        String className = getClassName(typeElement, packageName);
         ClassName bindClassName = ClassName.get(packageName, className);
 
         // 添加$$Proxy 为后缀的类
@@ -60,7 +92,7 @@ public class ProxyClass {
                 .addModifiers(Modifier.PUBLIC)
                 // 添加父接口
                 .addSuperinterface(ParameterizedTypeName.get(IPROXY, TypeName.get(typeElement.asType())))
-                .addMethod(mAddViewBuilder.build())
+                .addMethod(mInjectBuilder.build())
                 .build();
 
         // 生成 java 文件
@@ -76,7 +108,6 @@ public class ProxyClass {
     private String getPackageName(TypeElement annotatedClassElement) {
         return elementUtils.getPackageOf(annotatedClassElement).toString();
     }
-
 
 
 }

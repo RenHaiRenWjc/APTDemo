@@ -2,7 +2,6 @@ package com.jc.aptapi;
 
 import android.app.Activity;
 import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 import android.support.annotation.UiThread;
 import android.view.View;
 
@@ -11,8 +10,8 @@ import android.view.View;
  * Description: 架构 api，供使用者调用，Android Library类型模块
  * JcChen on 2019/8/12 0:12
  */
-public class ProxyTool {
-    private static final String SUFFIX = "Proxy";
+public class InjectorTool {
+    private static final String SUFFIX = "Injector";
 
     /**
      * activity
@@ -50,7 +49,7 @@ public class ProxyTool {
         Class<?> targetClass = target.getClass();
         try {
             Class<?> proxyClass = Class.forName(targetClass.getName() + SUFFIX);
-            IProxy proxy = (IProxy) proxyClass.newInstance();
+            Injector proxy = (Injector) proxyClass.newInstance();
             proxy.inject(target, root);
         } catch (Exception e) {
             e.printStackTrace();

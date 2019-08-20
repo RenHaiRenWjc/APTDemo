@@ -5,11 +5,9 @@ import com.jc.aptannotations.OnClick;
 
 import java.util.List;
 
-import javax.annotation.processing.Messager;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Name;
 import javax.lang.model.element.VariableElement;
 
 /**
@@ -50,9 +48,9 @@ public class OnClickMethod {
         List<? extends VariableElement> parameters = methodElement.getParameters();  //(View view)
         if (parameters.size() == 1) {
             VariableElement variableElement = parameters.get(0);
-            if (!variableElement.asType().toString().equals(ProxyClass.VIEW.toString())) {
+            if (!variableElement.asType().toString().equals(InjectorClass.VIEW.toString())) {
                 throw new IllegalArgumentException(
-                        String.format("The method parameter must be %s type", ProxyClass.VIEW.toString()));
+                        String.format("The method parameter must be %s type", InjectorClass.VIEW.toString()));
             }
             hasParameter = true;
             parameterName = variableElement.getSimpleName().toString();

@@ -19,19 +19,19 @@ import javax.lang.model.util.Elements;
  * Description: 代理类
  * JcChen on 2019/8/11 17:00
  */
-public class ProxyClass {
+public class InjectorClass {
     public TypeElement typeElement; // 类元素
     private Elements elementUtils; // 元素相关辅助类
     private Set<FieldViewBinding> mFieldList = new HashSet<>();
     private Set<OnClickMethod> mOnClickMethods = new HashSet<>();
 
-    private static final ClassName IPROXY = ClassName.get("com.jc.aptapi", "IProxy");
+    private static final ClassName Injector = ClassName.get("com.jc.aptapi", "Injector");
     public static final ClassName VIEW = ClassName.get("android.view", "View");
     public static final ClassName VIEW_ON_CLICK_LISTENER = ClassName.get("android.view",
             "View", "OnClickListener");
-    private static final String SUFFIX = "Proxy";
+    private static final String SUFFIX = "Injector";
 
-    public ProxyClass(TypeElement typeElement, Elements elementUtils) {
+    public InjectorClass(TypeElement typeElement, Elements elementUtils) {
         this.typeElement = typeElement;
         this.elementUtils = elementUtils;
     }
@@ -47,9 +47,10 @@ public class ProxyClass {
     //生成代理类
     public JavaFile generateProxy() {
         //生成public void inject(final T target, View root)方法
-        MethodSpec.Builder mInjectBuilder = MethodSpec.methodBuilder("inject")
-                .addModifiers(Modifier.PUBLIC)
+        MethodSpec.Builder mInjectBuilder = MethodSpec
+                .methodBuilder("inject")
                 .addAnnotation(Override.class)
+                .addModifiers(Modifier.PUBLIC)
                 .addParameter(TypeName.get(typeElement.asType()), "target", Modifier.FINAL)
                 .addParameter(VIEW, "root");
         // 在 inject 方法中，添加 findViewById 逻辑
@@ -70,8 +71,10 @@ public class ProxyClass {
             TypeSpec listener = TypeSpec.anonymousClassBuilder("")
                     .addSuperinterface(VIEW_ON_CLICK_LISTENER)
                     .addMethod(MethodSpec.methodBuilder("onClick")
-                            .addAnnotation(Override.class).addModifiers(Modifier.PUBLIC)
-                            .returns(TypeName.VOID).addParameter(VIEW, "view")
+                            .addAnnotation(Override.class)
+                            .addModifiers(Modifier.PUBLIC)
+                            .returns(TypeName.VOID)
+                            .addParameter(VIEW, "view")
                             .addStatement("target.$N($L)", method.getMethodName()
                                     , method.hasParameter() ? method.getParameterName() : "")
                             .build()
@@ -91,7 +94,7 @@ public class ProxyClass {
         TypeSpec finderClass = TypeSpec.classBuilder(bindClassName.simpleName() + SUFFIX)
                 .addModifiers(Modifier.PUBLIC)
                 // 添加父接口
-                .addSuperinterface(ParameterizedTypeName.get(IPROXY, TypeName.get(typeElement.asType())))
+                .addSuperinterface(ParameterizedTypeName.get(Injector, TypeName.get(typeElement.asType())))
                 .addMethod(mInjectBuilder.build())
                 .build();
 
@@ -101,8 +104,7 @@ public class ProxyClass {
 
     private String getClassName(TypeElement annotatedClassElement, String packageName) {
         int packageLen = packageName.length() + 1;
-        return annotatedClassElement.getQualifiedName().toString()
-                .substring(packageLen).replace('.', '_');
+        return annotatedClassElement.getQualifiedName().toString().substring(packageLen);
     }
 
     private String getPackageName(TypeElement annotatedClassElement) {

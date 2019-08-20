@@ -3,8 +3,8 @@ package com.jc.apt_compiler;
 import com.google.auto.service.AutoService;
 import com.jc.apt_compiler.exception.ProcessingException;
 import com.jc.apt_compiler.mode.FieldViewBinding;
+import com.jc.apt_compiler.mode.InjectorClass;
 import com.jc.apt_compiler.mode.OnClickMethod;
-import com.jc.apt_compiler.mode.ProxyClass;
 import com.jc.aptannotations.ViewById;
 import com.jc.aptannotations.OnClick;
 
@@ -44,7 +44,7 @@ public class AptToolProcessor extends AbstractProcessor {
     private Filer mFiler;  //文件相关工具类
     private Elements mElementsUtils; // 元素相关工具类
     private Messager mMessager; //日志相关工具类
-    private Map<String, ProxyClass> mProxyClassMap = new HashMap<>();
+    private Map<String, InjectorClass> mProxyClassMap = new HashMap<>();
 
 
     /**
@@ -88,9 +88,9 @@ public class AptToolProcessor extends AbstractProcessor {
             }
         }
         // 为每个宿主类生成对应的类
-        for (ProxyClass proxyClass : mProxyClassMap.values()) {
+        for (InjectorClass injectorClass : mProxyClassMap.values()) {
             try {
-                proxyClass.generateProxy().writeTo(mFiler);
+                injectorClass.generateProxy().writeTo(mFiler);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -173,42 +173,52 @@ public class AptToolProcessor extends AbstractProcessor {
         return isValid;
     }
 
+    /**
+     * 处理 ViewById 注解
+     * @param element
+     * @throws ProcessingException
+     */
+    private void handleViewById(Element element) throws ProcessingException {
+        InjectorClass injectorClass = getProxyClass(element);
+        FieldViewBinding binding = new FieldViewBinding(element);
+        injectorClass.addField(binding);
+    }
+
+    /**
+     * 处理 OnClickMethod 注解
+     * @param element
+     * @throws ProcessingException
+     */
+    private void handleOnClickMethod(Element element) throws ProcessingException {
+        InjectorClass injectorClass = getProxyClass(element);
+        OnClickMethod onClickMethod = new OnClickMethod(element);
+        injectorClass.addMethod(onClickMethod);
+    }
+
+    /**
+     * 生成或获取注解对于的 InjectorClass
+     *
+     * @param element 元素
+     * @return InjectorClass
+     */
+    private InjectorClass getProxyClass(Element element) {
+        // 被注解所在类
+        TypeElement classElement = (TypeElement) element.getEnclosingElement();
+        String name = classElement.getQualifiedName().toString();
+        InjectorClass injectorClass = mProxyClassMap.get(name);
+        if (injectorClass == null) {
+            injectorClass = new InjectorClass(classElement, mElementsUtils);
+            mProxyClassMap.put(name, injectorClass);
+        }
+        return injectorClass;
+    }
+
     private void error(Element e, String msg, Object... args) {
         mMessager.printMessage(Diagnostic.Kind.ERROR, String.format(msg, args), e);
     }
 
     private void info(Element e, String msg, Object... args) {
         mMessager.printMessage(Diagnostic.Kind.NOTE, String.format(msg, args), e);
-    }
-
-    private void handleViewById(Element element) throws ProcessingException {
-        ProxyClass proxyClass = getProxyClass(element);
-        FieldViewBinding binding = new FieldViewBinding(element);
-        proxyClass.addField(binding);
-    }
-
-    private void handleOnClickMethod(Element element) throws ProcessingException {
-        ProxyClass proxyClass = getProxyClass(element);
-        OnClickMethod onClickMethod = new OnClickMethod(element);
-        proxyClass.addMethod(onClickMethod);
-    }
-
-    /**
-     * 生成或获取注解对于的 ProxyClass
-     *
-     * @param element 元素
-     * @return ProxyClass
-     */
-    private ProxyClass getProxyClass(Element element) {
-        // 被注解所在类
-        TypeElement classElement = (TypeElement) element.getEnclosingElement();
-        String name = classElement.getQualifiedName().toString();
-        ProxyClass proxyClass = mProxyClassMap.get(name);
-        if (proxyClass == null) {
-            proxyClass = new ProxyClass(classElement, mElementsUtils);
-            mProxyClassMap.put(name, proxyClass);
-        }
-        return proxyClass;
     }
 }
 
